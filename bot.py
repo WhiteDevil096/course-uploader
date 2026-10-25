@@ -4,13 +4,18 @@ import json
 import asyncio
 import urllib.request
 import urllib.parse
-from pyrogram.errors import FloodWait
 
-# GitHub Actions Secrets / Environment variables
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-CHAT_ID = int(os.environ["CHAT_ID"])
+# Environment variables se credentials lena (GitHub Actions Secrets)
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+CHAT_ID_RAW = os.environ.get("CHAT_ID")
 
-# Fixed Thumbnail URL
+if not BOT_TOKEN or not CHAT_ID_RAW:
+    print("❌ Error: BOT_TOKEN ya CHAT_ID environment variables me set nahi hain!", flush=True)
+    exit(1)
+
+CHAT_ID = int(CHAT_ID_RAW)
+
+# Default Thumbnail URL
 DEFAULT_THUMBNAIL = "https://skipsuniversity.edu.in/wp-content/uploads/2023/09/btech.png"
 THUMBNAIL_URL = os.environ.get("THUMBNAIL_URL", "").strip() or DEFAULT_THUMBNAIL
 
@@ -31,12 +36,12 @@ def save_state(state):
         with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=4)
     except Exception as e:
-        print(f"⚠️ Progress save karne me error: {e}")
+        print(f"⚠️ Progress save karne me error: {e}", flush=True)
 
 def make_telegram_request(endpoint: str, payload: dict):
     """
-    Direct Telegram Bot API call.
-    Isme Pyrogram ka 'Peer id invalid' kabhi nahi aata.
+    Direct Telegram HTTP Bot API request.
+    Isme Pyrogram ka Peer ID issue bilkul nahi hota.
     """
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/{endpoint}"
     data = json.dumps(payload).encode("utf-8")
@@ -51,7 +56,6 @@ def make_telegram_request(endpoint: str, payload: dict):
         error_body = e.read().decode()
         try:
             error_json = json.loads(error_body)
-            # FloodWait check
             retry_after = error_json.get("parameters", {}).get("retry_after")
             return False, {"error": error_json.get("description", str(e)), "retry_after": retry_after}
         except Exception:
@@ -120,14 +124,14 @@ def get_button_text(url: str) -> str:
 
 async def main():
     if not os.path.exists(FOLDER_PATH):
-        print(f"❌ Error: Folder '{FOLDER_PATH}' nahi mila!")
+        print(f"❌ Error: Folder '{FOLDER_PATH}' nahi mila!", flush=True)
         return
 
     all_files = [f for f in os.listdir(FOLDER_PATH) if f.lower().endswith(".txt")]
     all_files.sort()
 
     if not all_files:
-        print(f"❌ '{FOLDER_PATH}' me koi bhi .txt file nahi mili.")
+        print(f"❌ '{FOLDER_PATH}' me koi bhi .txt file nahi mili.", flush=True)
         return
 
     total_files = len(all_files)
@@ -137,8 +141,8 @@ async def main():
     state["thumbnail_url"] = thumb_url
     save_state(state)
 
-    print(f"📂 Total {total_files} txt files mili hain.")
-    print(f"🖼️ Using Thumbnail: {thumb_url}\n")
+    print(f"📂 Total {total_files} txt files mili hain.", flush=True)
+    print(f"🖼️ Using Thumbnail: {thumb_url}\n", flush=True)
 
     for file_index, filename in enumerate(all_files, start=1):
         topic_name = os.path.splitext(filename)[0]
@@ -146,23 +150,23 @@ async def main():
 
         file_state = state.get("files", {}).get(filename, {})
         if file_state.get("completed", False):
-            print(f"⏩ [File {file_index}/{total_files}] '{filename}' already uploaded. Skipping...")
+            print(f"⏩ [File {file_index}/{total_files}] '{filename}' already uploaded. Skipping...", flush=True)
             continue
 
-        print("—" * 60)
+        print("—" * 60, flush=True)
         overall_pct = ((file_index - 1) / total_files) * 100
-        print(f"📊 Progress: {file_index - 1}/{total_files} Files Done ({overall_pct:.1f}%) | Remaining: {total_files - (file_index - 1)}")
-        print(f"📂 Current File: {filename} -> Topic: '{topic_name}'")
-        print("—" * 60)
+        print(f"📊 Progress: {file_index - 1}/{total_files} Files Done ({overall_pct:.1f}%) | Remaining: {total_files - (file_index - 1)}", flush=True)
+        print(f"📂 Current File: {filename} -> Topic: '{topic_name}'", flush=True)
+        print("—" * 60, flush=True)
 
-        # 1. Topic handle karna
+        # Topic Create ya Resume
         topic_id = file_state.get("topic_id")
         if not topic_id:
             topic_id, err = create_telegram_topic(topic_name)
             if not topic_id:
-                print(f"❌ Topic create nahi hua: {err}")
+                print(f"❌ Topic create nahi hua: {err}", flush=True)
                 continue
-            print(f"✅ Topic Created: '{topic_name}' (ID: {topic_id})")
+            print(f"✅ Topic Created: '{topic_name}' (ID: {topic_id})", flush=True)
 
             if "files" not in state:
                 state["files"] = {}
@@ -173,13 +177,13 @@ async def main():
             }
             save_state(state)
         else:
-            print(f"🔄 Existing Topic ID mila: {topic_id}")
+            print(f"🔄 Existing Topic ID mila: {topic_id}", flush=True)
 
         items = parse_txt_file(file_path)
         total_items = len(items)
         last_uploaded = state.get("files", {}).get(filename, {}).get("last_uploaded_idx", 0)
 
-        # 2. Har lecture bhejna
+        # Messages bhejna
         for idx in range(last_uploaded, total_items):
             item = items[idx]
             lecture_num = idx + 1
@@ -202,36 +206,36 @@ async def main():
                 if success:
                     state["files"][filename]["last_uploaded_idx"] = lecture_num
                     save_state(state)
-                    print(f"  └─> [{lecture_num}/{total_items}] ({item_pct:.1f}%) Sent: {item['title'][:35]}...")
+                    print(f"  └─> [{lecture_num}/{total_items}] ({item_pct:.1f}%) Sent: {item['title'][:35]}...", flush=True)
                     await asyncio.sleep(1.5)
                     break
 
                 retry_after = resp.get("retry_after")
                 if retry_after:
-                    print(f"  ⚠️ FloodWait mila: {retry_after}s wait kar rahe hain...")
+                    print(f"  ⚠️ FloodWait mila: {retry_after}s wait kar rahe hain...", flush=True)
                     await asyncio.sleep(retry_after)
                     continue
 
                 # Photo fail hone par text bhejna
-                print(f"  ⚠️ Photo issue ({resp.get('error')}), fallback to text message...")
+                print(f"  ⚠️ Photo issue ({resp.get('error')}), fallback to text...", flush=True)
                 txt_success, txt_resp = send_telegram_message(caption_text, topic_id, markup)
                 if txt_success:
                     state["files"][filename]["last_uploaded_idx"] = lecture_num
                     save_state(state)
-                    print(f"  └─> [{lecture_num}/{total_items}] ({item_pct:.1f}%) Sent (Text): {item['title'][:35]}...")
+                    print(f"  └─> [{lecture_num}/{total_items}] ({item_pct:.1f}%) Sent (Text): {item['title'][:35]}...", flush=True)
                     await asyncio.sleep(1.5)
                     break
                 else:
-                    print(f"  ❌ Send failed: {txt_resp.get('error')}")
+                    print(f"  ❌ Send failed: {txt_resp.get('error')}", flush=True)
                     await asyncio.sleep(2)
                     break
 
         state["files"][filename]["completed"] = True
         save_state(state)
-        print(f"✅ Topic '{topic_name}' Done!\n")
+        print(f"✅ Topic '{topic_name}' Done!\n", flush=True)
         await asyncio.sleep(2)
 
-    print("🎉 Sabhi files successfully upload ho chuki hain!")
+    print("🎉 Sabhi files successfully upload ho chuki hain!", flush=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
