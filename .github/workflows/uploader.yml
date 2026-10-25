@@ -1,0 +1,55 @@
+name: Batch Topic Uploader
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ZIP file ko automatically extract karna
+      - name: Extract txt_files.zip
+        run: |
+          if [ -f "txt_files.zip" ]; then
+            unzip -o txt_files.zip
+          fi
+
+      # Pichla progress download karna
+      - name: Download Previous Progress
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: progress-state
+          path: ./
+
+      - name: Execute Script
+        env:
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          THUMBNAIL_URL: "https://skipsuniversity.edu.in/wp-content/uploads/2023/09/btech.png"
+        run: python bot.py
+
+      # Progress hamesha save rahegi
+      - name: Save Progress State Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: progress-state
+          path: progress_state.json
+          overwrite: true
