@@ -170,12 +170,13 @@ async def main():
 
                 while True:
                     try:
+                        # Pyrogram me topic me bhejne ke liye reply_to_message_id use hota hai
                         await app.send_photo(
                             chat_id=CHAT_ID,
                             photo=thumb_url,
                             caption=caption_text,
                             reply_markup=markup,
-                            message_thread_id=topic_id
+                            reply_to_message_id=topic_id
                         )
                         state["files"][filename]["last_uploaded_idx"] = lecture_num
                         save_state(state)
@@ -192,11 +193,12 @@ async def main():
                                 chat_id=CHAT_ID,
                                 text=caption_text,
                                 reply_markup=markup,
-                                message_thread_id=topic_id,
+                                reply_to_message_id=topic_id,
                                 disable_web_page_preview=True
                             )
                             state["files"][filename]["last_uploaded_idx"] = lecture_num
                             save_state(state)
+                            print(f"  └─> [{lecture_num}/{total_items}] ({item_pct:.1f}%) Sent (Text): {item['title'][:35]}...")
                         except Exception as send_err:
                             print(f"  ❌ Message send error: {send_err}")
                         await asyncio.sleep(1.5)
