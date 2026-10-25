@@ -21,7 +21,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Pichle run ka saved progress download karna (agar pehle koi run hui thi)
+      # ZIP file ko automatically extract karna
+      - name: Extract txt_files.zip
+        run: |
+          if [ -f "txt_files.zip" ]; then
+            unzip -o txt_files.zip
+          fi
+
+      # Pichla progress download karna
       - name: Download Previous Progress
         uses: actions/download-artifact@v4
         continue-on-error: true
@@ -38,7 +45,7 @@ jobs:
           THUMBNAIL_URL: "https://skipsuniversity.edu.in/wp-content/uploads/2023/09/btech.png"
         run: python bot.py
 
-      # Chahe upload complete ho, fail ho ya manually cancel kiya gaya ho, progress hamesha save hogi
+      # Progress hamesha save rahegi
       - name: Save Progress State Artifact
         if: always()
         uses: actions/upload-artifact@v4
